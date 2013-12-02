@@ -30,20 +30,10 @@ class ActionViewMeta(type):
 
         type_new.actions = actions
 
-        return type_new
-
-
-class ActionView(metaclass=ActionViewMeta):
-
-    action_method_prefix = 'do_'
-    group_format = r'{group_name}/(?P<{group_name}>{group_regex})/'
-    default_group_regex = r'[\w\d\S]+'
-
-    @classmethod
-    def get_urls(cls):
+        # construct urls
         urls = []
 
-        for action_name, action_method in cls.actions.items():
+        for action_name, action_method in type_new.actions.items():
             regex_chunks = []
             default_values = {}
             parameters = inspect.signature(action_method).parameters.values()
@@ -51,24 +41,25 @@ class ActionView(metaclass=ActionViewMeta):
             for parameter in parameters:
 
                 if parameter.name == 'self':
-                    regex_chunks.append(
-                        parameter.annotation is inspect._empty
-                        and r'{}/'.format(action_name)
+                    group_name = (parameter.annotation is inspect._empty
+                        and action_name
                         or parameter.annotation)
+                    sep = group_name and '/'
+                    regex_chunks.append(r'{}{}'.format(group_name, sep))
                     continue
 
                 group_name = parameter.name
 
                 if parameter.annotation is inspect._empty:
-                    group_regex = cls.default_group_regex
+                    group_regex = type_new.default_group_regex
                 else:
                     group_regex = parameter.annotation
 
                 if parameter.default is inspect._empty:
-                    group_format = cls.group_format
+                    group_format = type_new.group_format
                 else:
                     default_values[parameter.name] = parameter.default
-                    group_format = r'({})?'.format(cls.group_format)
+                    group_format = r'({})?'.format(type_new.group_format)
 
                 regex_chunks.append(group_format.format(
                     group_name=group_name, group_regex=group_regex))
@@ -80,4 +71,13 @@ class ActionView(metaclass=ActionViewMeta):
                 kwargs=default_values,
                 name=action_name))
 
-        return urls
+        type_new.urls = urls
+
+        return type_new
+
+
+class ActionView(metaclass=ActionViewMeta):
+
+    action_method_prefix = 'do_'
+    group_format = r'{group_name}/(?P<{group_name}>{group_regex})/'
+    default_group_regex = r'[\w\d\S]+'
