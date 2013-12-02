@@ -2,7 +2,7 @@ import pytest
 from operator import attrgetter
 
 from django.core.urlresolvers import RegexURLPattern
-from django.conf.urls import patterns
+from django.conf.urls import patterns, url
 
 from actionviews.base import ActionView
 
@@ -102,3 +102,32 @@ def test_urls_default(TestView):
     assert urls_data['detail'].default_args == {}
     assert urls_data['article'].default_args == {}
     assert urls_data['default'].default_args == {}
+
+
+def test_urls_custom(TestView):
+
+    class CustomView(TestView):
+        urls = patterns('',
+            # @todo: check for correct view
+            url(r'^(page/(?P<skip>\d+)/)?$',
+                'index',
+                kwargs={'skip': 0},
+                name='list'),
+            url(r'^detail/(?P<id>\d+)/$', 'detail', name='detail'),
+        )
+
+    urls = CustomView.urls
+
+    assert all(map(lambda x: isinstance(x, RegexURLPattern), urls))
+
+    urls_data = {url.name: url for url in urls}
+
+    assert urls_data['list']._regex == r'^(page/(?P<skip>\d+)/)?$'
+    assert urls_data['detail']._regex == r'^detail/(?P<id>\d+)/$'
+
+    assert urls_data['list'].default_args == {'skip': 0}
+    assert urls_data['detail'].default_args == {}
+
+    assert 'index' not in urls_data
+    assert 'article' not in urls_data
+    assert 'default' not in urls_data
