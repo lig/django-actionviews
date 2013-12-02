@@ -1,3 +1,4 @@
+import pytest
 from operator import attrgetter
 
 from django.core.urlresolvers import RegexURLPattern
@@ -6,7 +7,8 @@ from django.conf.urls import patterns
 from actionviews.base import ActionView
 
 
-def test_declaration():
+@pytest.fixture(params=list(range(2)))
+def TestView(request):
 
     class TestView(ActionView):
 
@@ -16,7 +18,32 @@ def test_declaration():
         def do_detail(self, id:r'\d+'):
             pass
 
-    urls = TestView.get_urls()
+        def do_article(self:'article', id:r'\d+'):
+            pass
+
+        def do_default(self, id):
+            pass
+
+    class PrefixView(ActionView):
+        action_method_prefix = 'act_'
+
+        def act_index(self:'', skip:r'\d+'=0):
+            pass
+
+        def act_detail(self, id:r'\d+'):
+            pass
+
+        def act_article(self:'article', id:r'\d+'):
+            pass
+
+        def act_default(self, id):
+            pass
+
+    return [TestView, PrefixView][request.param]
+
+
+def test_urls(TestView):
+    urls = TestView.urls
 
     assert all(map(lambda x: isinstance(x, RegexURLPattern), urls))
 
@@ -24,6 +51,54 @@ def test_declaration():
 
     assert urls_data['index']._regex == r'^(skip/(?P<skip>\d+)/)?$'
     assert urls_data['detail']._regex == r'^detail/id/(?P<id>\d+)/$'
+    assert urls_data['article']._regex == r'^article/id/(?P<id>\d+)/$'
+    assert urls_data['default']._regex == r'^default/id/(?P<id>[\w\d\S]+)/$'
 
     assert urls_data['index'].default_args == {'skip': 0}
     assert urls_data['detail'].default_args == {}
+    assert urls_data['article'].default_args == {}
+    assert urls_data['default'].default_args == {}
+
+
+def test_urls_format(TestView):
+
+    class FormatView(TestView):
+        group_format = r'(?P<{group_name}>{group_regex})/'
+
+    urls = FormatView.urls
+
+    assert all(map(lambda x: isinstance(x, RegexURLPattern), urls))
+
+    urls_data = {url.name: url for url in urls}
+
+    assert urls_data['index']._regex == r'^((?P<skip>\d+)/)?$'
+    assert urls_data['detail']._regex == r'^detail/(?P<id>\d+)/$'
+    assert urls_data['article']._regex == r'^article/(?P<id>\d+)/$'
+    assert urls_data['default']._regex == r'^default/(?P<id>[\w\d\S]+)/$'
+
+    assert urls_data['index'].default_args == {'skip': 0}
+    assert urls_data['detail'].default_args == {}
+    assert urls_data['article'].default_args == {}
+    assert urls_data['default'].default_args == {}
+
+
+def test_urls_default(TestView):
+
+    class FormatView(TestView):
+        default_group_regex = r'\w+'
+
+    urls = FormatView.urls
+
+    assert all(map(lambda x: isinstance(x, RegexURLPattern), urls))
+
+    urls_data = {url.name: url for url in urls}
+
+    assert urls_data['index']._regex == r'^(skip/(?P<skip>\d+)/)?$'
+    assert urls_data['detail']._regex == r'^detail/id/(?P<id>\d+)/$'
+    assert urls_data['article']._regex == r'^article/id/(?P<id>\d+)/$'
+    assert urls_data['default']._regex == r'^default/id/(?P<id>\w+)/$'
+
+    assert urls_data['index'].default_args == {'skip': 0}
+    assert urls_data['detail'].default_args == {}
+    assert urls_data['article'].default_args == {}
+    assert urls_data['default'].default_args == {}
