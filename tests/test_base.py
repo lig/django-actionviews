@@ -131,3 +131,28 @@ def test_urls_custom(TestView):
     assert 'index' not in urls_data
     assert 'article' not in urls_data
     assert 'default' not in urls_data
+
+
+def test_urls_custom_actions(TestView):
+
+    class CustomView(TestView):
+        actions = {
+            'list': '{}index'.format(TestView.action_method_prefix),
+            'detail': '{}detail'.format(TestView.action_method_prefix),
+        }
+
+    urls = CustomView.urls
+
+    assert all(map(lambda x: isinstance(x, RegexURLPattern), urls))
+
+    urls_data = {url.name: url for url in urls}
+
+    assert urls_data['list']._regex == r'^(skip/(?P<skip>\d+)/)?$'
+    assert urls_data['detail']._regex == r'^detail/id/(?P<id>\d+)/$'
+
+    assert urls_data['list'].default_args == {'skip': 0}
+    assert urls_data['detail'].default_args == {}
+
+    assert 'index' not in urls_data
+    assert 'article' not in urls_data
+    assert 'default' not in urls_data

@@ -16,17 +16,21 @@ class ActionViewMeta(type):
         # get action_method_prefix
         action_method_prefix = type_new.action_method_prefix
 
-        # find action names and corresponding methods
-        actions = {}
+        # find action names and corresponding methods or use defined map
+        if 'actions' in attrs:
+            actions = {name: getattr(type_new, attr_name)
+                for name, attr_name in attrs['actions'].items()}
+        else:
+            actions = {}
 
-        for attr_name in dir(type_new):
+            for attr_name in dir(type_new):
 
-            if attr_name.startswith(action_method_prefix):
-                action_name = attr_name[len(action_method_prefix):]
+                if attr_name.startswith(action_method_prefix):
+                    action_name = attr_name[len(action_method_prefix):]
 
-                # avoid empty action_name
-                if action_name:
-                    actions[action_name] = getattr(type_new, attr_name)
+                    # avoid empty action_name
+                    if action_name:
+                        actions[action_name] = getattr(type_new, attr_name)
 
         type_new.actions = actions
 
