@@ -1,8 +1,8 @@
-import pytest
 from operator import attrgetter
 
-from django.core.urlresolvers import RegexURLPattern
 from django.conf.urls import patterns, url
+from django.core.urlresolvers import RegexURLPattern
+import pytest
 
 from actionviews.base import ActionView
 
