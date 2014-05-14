@@ -2,8 +2,11 @@ import inspect
 import logging
 
 from django.conf.urls import url
-from django.http.response import HttpResponseNotAllowed
+from django.http.response import HttpResponseNotAllowed,\
+    HttpResponseServerError
 from django.utils.decorators import classonlymethod
+from django.shortcuts import render_to_response
+from collections.abc import Mapping
 
 
 logger = logging.getLogger('django.actionviews')
@@ -116,10 +119,15 @@ class ActionView(metaclass=ActionViewMeta):
             self.args = args
             self.kwargs = kwargs
 
-            # get action result
-            result = func(self, *args, **kwargs)
-
-            # return rendered result 
-            return self.render_to_response(result)
+            # handle action result 
+            return self.handle(func(self, *args, **kwargs))
 
         return view
+
+    def handle(self, context):
+
+        if not isinstance(context, Mapping):
+            raise HttpResponseServerError(
+                'Action method must return dict like object')
+
+        return context

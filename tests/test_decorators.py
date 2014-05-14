@@ -1,7 +1,7 @@
-from actionviews.decorators import action_decorator
-
 
 def test_actiondecorator():
+    from actionviews.decorators import action_decorator
+
     decorator_request = []
 
     def view_decorator(func):

@@ -2,11 +2,10 @@ from django.conf.urls import patterns, url
 from django.core.urlresolvers import RegexURLPattern
 import pytest
 
-from actionviews.base import ActionView
-
 
 @pytest.fixture(params=list(range(2)))
 def TestView(request):
+    from actionviews.base import ActionView
 
     class TestView(ActionView):
 
