@@ -2,6 +2,8 @@ import inspect
 import logging
 
 from django.conf.urls import url
+from django.http.response import HttpResponseNotAllowed
+from django.utils.decorators import classonlymethod
 
 
 logger = logging.getLogger('django.actionviews')
@@ -73,7 +75,7 @@ class ActionViewMeta(type):
                 url_regex = r'^{}$'.format(''.join(regex_chunks))
                 urls.append(url(
                     regex=url_regex,
-                    view=None,
+                    view=type_new.as_view(action_method),
                     kwargs=default_values,
                     name=action_name))
 
@@ -87,3 +89,37 @@ class ActionView(metaclass=ActionViewMeta):
     action_method_prefix = 'do_'
     group_format = r'{group_name}/(?P<{group_name}>{group_regex})/'
     default_group_regex = r'[\w\d\S]+'
+
+    http_method_names = ['get', 'post', 'put', 'patch', 'delete', 'head',
+        'options', 'trace']
+
+    @classonlymethod
+    def as_view(cls, func):  # @NoSelf
+        """
+        Action method to view factory.
+        """
+
+        def view(request, *args, **kwargs):
+            # check http method via action or class attribute
+            http_method_names = getattr(
+                func, 'http_method_names', cls.http_method_names)
+
+            if request.method.lower() not in http_method_names:
+                return HttpResponseNotAllowed(
+                    '`{}` method not allowed'.format(request.method))
+
+            # get view class instance
+            self = cls()
+
+            # set instance attributes
+            self.request = request
+            self.args = args
+            self.kwargs = kwargs
+
+            # get action result
+            result = func(self, *args, **kwargs)
+
+            # return rendered result 
+            return self.render_to_response(result)
+
+        return view
