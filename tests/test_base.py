@@ -1,5 +1,3 @@
-from operator import attrgetter
-
 from django.conf.urls import patterns, url
 from django.core.urlresolvers import RegexURLPattern
 import pytest
@@ -15,13 +13,13 @@ def TestView(request):
         def do_index(self:'', skip:r'\d+'=0):
             pass
 
-        def do_detail(self, id:r'\d+'):
+        def do_detail(self, pk:r'\d+'):
             pass
 
-        def do_article(self:'article', id:r'\d+'):
+        def do_article(self:'article', pk:r'\d+'):
             pass
 
-        def do_default(self, id):
+        def do_default(self, pk):
             pass
 
     class PrefixView(ActionView):
@@ -30,13 +28,13 @@ def TestView(request):
         def act_index(self:'', skip:r'\d+'=0):
             pass
 
-        def act_detail(self, id:r'\d+'):
+        def act_detail(self, pk:r'\d+'):
             pass
 
-        def act_article(self:'article', id:r'\d+'):
+        def act_article(self:'article', pk:r'\d+'):
             pass
 
-        def act_default(self, id):
+        def act_default(self, pk):
             pass
 
     return [TestView, PrefixView][request.param]
@@ -50,9 +48,9 @@ def test_urls(TestView):
     urls_data = {url.name: url for url in urls}
 
     assert urls_data['index']._regex == r'^(skip/(?P<skip>\d+)/)?$'
-    assert urls_data['detail']._regex == r'^detail/id/(?P<id>\d+)/$'
-    assert urls_data['article']._regex == r'^article/id/(?P<id>\d+)/$'
-    assert urls_data['default']._regex == r'^default/id/(?P<id>[\w\d\S]+)/$'
+    assert urls_data['detail']._regex == r'^detail/pk/(?P<pk>\d+)/$'
+    assert urls_data['article']._regex == r'^article/pk/(?P<pk>\d+)/$'
+    assert urls_data['default']._regex == r'^default/pk/(?P<pk>[\w\d\S]+)/$'
 
     assert urls_data['index'].default_args == {'skip': 0}
     assert urls_data['detail'].default_args == {}
@@ -72,9 +70,9 @@ def test_urls_format(TestView):
     urls_data = {url.name: url for url in urls}
 
     assert urls_data['index']._regex == r'^((?P<skip>\d+)/)?$'
-    assert urls_data['detail']._regex == r'^detail/(?P<id>\d+)/$'
-    assert urls_data['article']._regex == r'^article/(?P<id>\d+)/$'
-    assert urls_data['default']._regex == r'^default/(?P<id>[\w\d\S]+)/$'
+    assert urls_data['detail']._regex == r'^detail/(?P<pk>\d+)/$'
+    assert urls_data['article']._regex == r'^article/(?P<pk>\d+)/$'
+    assert urls_data['default']._regex == r'^default/(?P<pk>[\w\d\S]+)/$'
 
     assert urls_data['index'].default_args == {'skip': 0}
     assert urls_data['detail'].default_args == {}
@@ -94,9 +92,9 @@ def test_urls_default(TestView):
     urls_data = {url.name: url for url in urls}
 
     assert urls_data['index']._regex == r'^(skip/(?P<skip>\d+)/)?$'
-    assert urls_data['detail']._regex == r'^detail/id/(?P<id>\d+)/$'
-    assert urls_data['article']._regex == r'^article/id/(?P<id>\d+)/$'
-    assert urls_data['default']._regex == r'^default/id/(?P<id>\w+)/$'
+    assert urls_data['detail']._regex == r'^detail/pk/(?P<pk>\d+)/$'
+    assert urls_data['article']._regex == r'^article/pk/(?P<pk>\d+)/$'
+    assert urls_data['default']._regex == r'^default/pk/(?P<pk>\w+)/$'
 
     assert urls_data['index'].default_args == {'skip': 0}
     assert urls_data['detail'].default_args == {}
@@ -113,7 +111,7 @@ def test_urls_custom(TestView):
                 'index',
                 kwargs={'skip': 0},
                 name='list'),
-            url(r'^detail/(?P<id>\d+)/$', 'detail', name='detail'),
+            url(r'^detail/(?P<pk>\d+)/$', 'detail', name='detail'),
         )
 
     urls = CustomView.urls
@@ -123,7 +121,7 @@ def test_urls_custom(TestView):
     urls_data = {url.name: url for url in urls}
 
     assert urls_data['list']._regex == r'^(page/(?P<skip>\d+)/)?$'
-    assert urls_data['detail']._regex == r'^detail/(?P<id>\d+)/$'
+    assert urls_data['detail']._regex == r'^detail/(?P<pk>\d+)/$'
 
     assert urls_data['list'].default_args == {'skip': 0}
     assert urls_data['detail'].default_args == {}
@@ -148,7 +146,7 @@ def test_urls_custom_actions(TestView):
     urls_data = {url.name: url for url in urls}
 
     assert urls_data['list']._regex == r'^(skip/(?P<skip>\d+)/)?$'
-    assert urls_data['detail']._regex == r'^detail/id/(?P<id>\d+)/$'
+    assert urls_data['detail']._regex == r'^detail/pk/(?P<pk>\d+)/$'
 
     assert urls_data['list'].default_args == {'skip': 0}
     assert urls_data['detail'].default_args == {}
