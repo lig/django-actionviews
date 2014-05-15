@@ -19,6 +19,12 @@ def django_request(request_factory):
 
 
 def test_view(TestView, django_request):
-    view = TestView.urls[0].callback
+
+    class TestGetView(TestView):
+
+        def get(self, action):
+            return action(self)
+
+    view = TestGetView.urls[0].callback
     response = view(django_request)
     assert response == {'result': 'test'}

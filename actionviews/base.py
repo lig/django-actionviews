@@ -1,12 +1,10 @@
+from functools import partial
 import inspect
 import logging
 
 from django.conf.urls import url
-from django.http.response import HttpResponseNotAllowed,\
-    HttpResponseServerError
+from django.http.response import HttpResponseNotAllowed, HttpResponse
 from django.utils.decorators import classonlymethod
-from django.shortcuts import render_to_response
-from collections.abc import Mapping
 
 
 logger = logging.getLogger('django.actionviews')
@@ -97,37 +95,67 @@ class ActionView(metaclass=ActionViewMeta):
         'options', 'trace']
 
     @classonlymethod
-    def as_view(cls, func):  # @NoSelf
+    def as_view(cls, action):  # @NoSelf
         """
         Action method to view factory.
         """
 
         def view(request, *args, **kwargs):
-            # check http method via action or class attribute
-            http_method_names = getattr(
-                func, 'http_method_names', cls.http_method_names)
-
-            if request.method.lower() not in http_method_names:
-                return HttpResponseNotAllowed(
-                    '`{}` method not allowed'.format(request.method))
-
             # get view class instance
             self = cls()
 
             # set instance attributes
+            if hasattr(self, 'get') and not hasattr(self, 'head'):
+                self.head = self.get
             self.request = request
             self.args = args
             self.kwargs = kwargs
 
-            # handle action result 
-            return self.handle(func(self, *args, **kwargs))
+            # dispatch action 
+            return self.dispatch(action, *args, **kwargs)
 
         return view
 
-    def handle(self, context):
+    def dispatch(self, action, *args, **kwargs):
+        """Try to dispatch to the right action; defer to the error handler if
+        the request method isn't on the approved list.
+        """
+        http_method_names = getattr(
+            action, 'allowed_methods', self.http_method_names)
 
-        if not isinstance(context, Mapping):
-            raise HttpResponseServerError(
-                'Action method must return dict like object')
+        if self.request.method.lower() in http_method_names:
+            handler = getattr(
+                self,
+                self.request.method.lower(),
+                self.http_method_not_allowed)
+        else:
+            handler = self.http_method_not_allowed
+        return handler(action, *args, **kwargs)
 
-        return context
+    def http_method_not_allowed(self, action, *args, **kwargs):
+        logger.warning(
+            'Method Not Allowed (%s): %s',
+            self.request.method,
+            self.request.path,
+            extra={
+                'status_code': 405,
+                'request': self.request
+            }
+        )
+        return HttpResponseNotAllowed(self._allowed_methods(action))
+
+    def options(self, action, *args, **kwargs):
+        """
+        Handles responding to requests for the OPTIONS HTTP verb.
+        """
+        response = HttpResponse()
+        response['Allow'] = ', '.join(self._allowed_methods(action))
+        response['Content-Length'] = '0'
+        return response
+
+    def _allowed_methods(self, action):
+        return map(
+            str.upper,
+            filter(
+                partial(hasattr, self),
+                getattr(action, 'allowed_methods', self.http_method_names)))
