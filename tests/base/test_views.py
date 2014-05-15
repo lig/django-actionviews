@@ -2,6 +2,7 @@ from django.conf.urls import patterns
 import pytest
 
 from actionviews.base import TemplateResponseMixin
+from actionviews.decorators import require_method
 
 
 @pytest.fixture(params=list(range(1)))
@@ -24,6 +25,11 @@ def TestView(request, monkeypatch):
 @pytest.fixture
 def django_request(request_factory):
     return request_factory.get('/')
+
+
+@pytest.fixture
+def django_request_post(request_factory):
+    return request_factory.post('/')
 
 
 def test_view(TestView, django_request):
@@ -85,3 +91,44 @@ def test_template_view(django_request, monkeypatch):
     view = TestTemplateView.urls[0].callback
     response = view(django_request)
     assert response.rendered_content == 'test'
+
+
+def test_method_allowed(TestView, django_request_post, monkeypatch):
+    from actionviews.base import TemplateView
+
+    class TestPostView(TemplateView):
+
+        @require_method('post')
+        def do_index(self:''):
+            return {'result': 'test'}
+
+    monkeypatch.setattr(
+        'django.core.urlresolvers.get_urlconf',
+        lambda: type(
+            'urlconf', (), {
+                'urlpatterns': patterns('', *TestPostView.urls)}))
+
+    view = TestPostView.urls[0].callback
+    response = view(django_request_post)
+    assert response.status_code == 200
+    assert response.rendered_content == 'test'
+
+
+def test_method_not_allowed(django_request, monkeypatch):
+    from actionviews.base import TemplateView
+
+    class TestPostView(TemplateView):
+
+        @require_method('post')
+        def do_index(self:''):
+            return {'result': 'test'}
+
+    monkeypatch.setattr(
+        'django.core.urlresolvers.get_urlconf',
+        lambda: type(
+            'urlconf', (), {
+                'urlpatterns': patterns('', *TestPostView.urls)}))
+
+    view = TestPostView.urls[0].callback
+    response = view(django_request)
+    assert response.status_code == 405

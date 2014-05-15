@@ -116,8 +116,6 @@ class View(metaclass=ActionViewMeta):
             self = cls()
 
             # set instance attributes
-            if hasattr(self, 'get') and not hasattr(self, 'head'):
-                self.head = self.get
             self.request = request
             self.args = args
             self.kwargs = kwargs
@@ -136,7 +134,7 @@ class View(metaclass=ActionViewMeta):
         the request method isn't on the approved list.
         """
         http_method_names = getattr(
-            request, 'allowed_methods', self.http_method_names)
+            self.action, 'allowed_methods', self.http_method_names)
 
         if request.method.lower() in http_method_names:
             handler = getattr(
@@ -223,3 +221,6 @@ class TemplateView(TemplateResponseMixin, ContextMixin, View):
     def get(self, request, *args, **kwargs):
         context = self.get_context_data(**kwargs)
         return self.render_to_response(context)
+
+    # support basic methods by default
+    post = head = get
