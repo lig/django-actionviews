@@ -3,11 +3,10 @@ import inspect
 import logging
 
 from django.conf.urls import url
-from django.http.response import HttpResponseNotAllowed, HttpResponse
-from django.utils.decorators import classonlymethod
-from django.template.response import TemplateResponse
-from django.core.exceptions import ImproperlyConfigured
 from django.core.urlresolvers import resolve
+from django.http.response import HttpResponseNotAllowed, HttpResponse
+from django.template.response import TemplateResponse
+from django.utils.decorators import classonlymethod
 
 
 logger = logging.getLogger('django.actionviews')

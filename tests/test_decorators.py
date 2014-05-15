@@ -1,4 +1,3 @@
-
 def test_action_decorator():
     from actionviews.decorators import action_decorator
 

@@ -1,7 +1,7 @@
-import pytest
-from functools import wraps
-from actionviews.base import TemplateResponseMixin
 from django.conf.urls import patterns
+import pytest
+
+from actionviews.base import TemplateResponseMixin
 
 
 @pytest.fixture(params=list(range(1)))
