@@ -1,10 +1,13 @@
-from functools import partial
+from functools import partial, update_wrapper
 import inspect
 import logging
 
 from django.conf.urls import url
 from django.http.response import HttpResponseNotAllowed, HttpResponse
 from django.utils.decorators import classonlymethod
+from django.template.response import TemplateResponse
+from django.core.exceptions import ImproperlyConfigured
+from django.core.urlresolvers import resolve
 
 
 logger = logging.getLogger('django.actionviews')
@@ -74,6 +77,7 @@ class ActionViewMeta(type):
                         group_name=group_name, group_regex=group_regex))
 
                 url_regex = r'^{}$'.format(''.join(regex_chunks))
+                action_method.name = action_name
                 urls.append(url(
                     regex=url_regex,
                     view=type_new.as_view(action_method),
@@ -111,51 +115,94 @@ class ActionView(metaclass=ActionViewMeta):
             self.args = args
             self.kwargs = kwargs
 
-            # dispatch action 
-            return self.dispatch(action, *args, **kwargs)
+            # make self.action look like actual action method
+            self.action = partial(action, self)
+            update_wrapper(self.action, action)
+
+            # dispatch request
+            return self.dispatch(request, *args, **kwargs)
 
         return view
 
-    def dispatch(self, action, *args, **kwargs):
+    def dispatch(self, request, *args, **kwargs):
         """Try to dispatch to the right action; defer to the error handler if
         the request method isn't on the approved list.
         """
         http_method_names = getattr(
-            action, 'allowed_methods', self.http_method_names)
+            request, 'allowed_methods', self.http_method_names)
 
-        if self.request.method.lower() in http_method_names:
+        if request.method.lower() in http_method_names:
             handler = getattr(
                 self,
-                self.request.method.lower(),
+                request.method.lower(),
                 self.http_method_not_allowed)
         else:
             handler = self.http_method_not_allowed
-        return handler(action, *args, **kwargs)
+        return handler(request, *args, **kwargs)
 
-    def http_method_not_allowed(self, action, *args, **kwargs):
+    def http_method_not_allowed(self, request, *args, **kwargs):
         logger.warning(
             'Method Not Allowed (%s): %s',
-            self.request.method,
-            self.request.path,
+            request.method,
+            request.path,
             extra={
                 'status_code': 405,
                 'request': self.request
             }
         )
-        return HttpResponseNotAllowed(self._allowed_methods(action))
+        return HttpResponseNotAllowed(self._allowed_methods())
 
-    def options(self, action, *args, **kwargs):
+    def options(self, request, *args, **kwargs):
         """
         Handles responding to requests for the OPTIONS HTTP verb.
         """
         response = HttpResponse()
-        response['Allow'] = ', '.join(self._allowed_methods(action))
+        response['Allow'] = ', '.join(self._allowed_methods(self.action))
         response['Content-Length'] = '0'
         return response
 
-    def _allowed_methods(self, action):
-        return map(
-            str.upper,
-            filter(
-                partial(hasattr, self),
-                getattr(action, 'allowed_methods', self.http_method_names)))
+    def _allowed_methods(self):
+        return map(str.upper,
+            filter(partial(hasattr, self),
+                getattr(
+                    self.action,
+                    'allowed_methods',
+                    self.http_method_names)))
+
+
+class TemplateResponseMixin(object):
+    """
+    A mixin that can be used to render a template.
+    """
+    template_name = '{namespace}/{view_name}/{action_name}.html'
+    response_class = TemplateResponse
+    content_type = None
+
+    def render_to_response(self, context, **response_kwargs):
+        """
+        Returns a response, using the `response_class` for this
+        view, with a template rendered with the given context.
+
+        If any keyword arguments are provided, they will be
+        passed to the constructor of the response class.
+        """
+        response_kwargs.setdefault('content_type', self.content_type)
+        return self.response_class(
+            request = self.request,
+            template = self.get_template_names(),
+            context = context,
+            **response_kwargs
+        )
+
+    def get_template_names(self):
+        """
+        Returns a list of template names parsed from template_name using action
+        method name to be used for the request. Must return a list. May not be
+        called if render_to_response is overridden.
+        """
+
+        return [self.template_name.format_map({
+            'namespace': resolve(self.request.path).namespace,
+            'view_name': self.__class__.__name__,
+            'action_name': self.action.name,
+        })]
