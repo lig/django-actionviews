@@ -12,6 +12,14 @@ from django.utils.decorators import classonlymethod
 logger = logging.getLogger('django.actionviews')
 
 
+class ContextMixin(object):
+    """A default context mixin that handles current action and passes the
+    result as the template context.
+    """
+    def get_context_data(self, **kwargs):
+        return self.action(**kwargs)
+
+
 class ActionViewMeta(type):
 
     def __new__(cls, name, bases, attrs):
@@ -204,4 +212,14 @@ class TemplateResponseMixin(object):
             'namespace': resolve(self.request.path).namespace,
             'view_name': self.__class__.__name__,
             'action_name': self.action.name,
-        })]
+        }).strip('/')]
+
+
+class TemplateView(TemplateResponseMixin, ContextMixin, View):
+    """
+    A view that renders a template.  This view will also pass into the context
+    any keyword arguments passed by the url conf.
+    """
+    def get(self, request, *args, **kwargs):
+        context = self.get_context_data(**kwargs)
+        return self.render_to_response(context)

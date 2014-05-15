@@ -1,1 +1,1 @@
-from .base import View
+from .base import TemplateView
