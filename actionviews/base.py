@@ -162,7 +162,7 @@ class View(metaclass=ActionViewMeta):
         Handles responding to requests for the OPTIONS HTTP verb.
         """
         response = HttpResponse()
-        response['Allow'] = ', '.join(self._allowed_methods(self.action))
+        response['Allow'] = ', '.join(self._allowed_methods())
         response['Content-Length'] = '0'
         return response
 

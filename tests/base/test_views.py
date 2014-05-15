@@ -32,6 +32,11 @@ def django_request_post(request_factory):
     return request_factory.post('/')
 
 
+@pytest.fixture
+def django_request_options(request_factory):
+    return request_factory.options('/')
+
+
 def test_view(TestView, django_request):
 
     class TestGetView(TestView):
@@ -132,3 +137,11 @@ def test_method_not_allowed(django_request, monkeypatch):
     view = TestPostView.urls[0].callback
     response = view(django_request)
     assert response.status_code == 405
+
+
+def test_options_method(TestView, django_request_options):
+    view = TestView.urls[0].callback
+    response = view(django_request_options)
+    assert response.status_code == 200
+    assert response['Allow'] == 'OPTIONS'
+    assert response['Content-Length'] == '0'
