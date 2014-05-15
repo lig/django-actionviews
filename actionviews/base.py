@@ -88,7 +88,7 @@ class ActionViewMeta(type):
         return type_new
 
 
-class ActionView(metaclass=ActionViewMeta):
+class View(metaclass=ActionViewMeta):
 
     action_method_prefix = 'do_'
     group_format = r'{group_name}/(?P<{group_name}>{group_regex})/'

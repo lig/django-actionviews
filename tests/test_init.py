@@ -1,5 +1,5 @@
 def test_import():
-    from actionviews import ActionView
-    from actionviews.base import ActionView as base_ActionView
+    from actionviews import View
+    from actionviews.base import View as base_View
 
-    assert ActionView is base_ActionView
+    assert View is base_View

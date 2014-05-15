@@ -6,9 +6,9 @@ from actionviews.base import TemplateResponseMixin
 
 @pytest.fixture(params=list(range(1)))
 def TestView(request):
-    from actionviews.base import ActionView
+    from actionviews.base import View
 
-    class TestView(ActionView):
+    class TestView(View):
 
         def do_index(self:''):
             return {'result': 'test'}

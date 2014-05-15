@@ -5,9 +5,9 @@ import pytest
 
 @pytest.fixture(params=list(range(2)))
 def TestView(request):
-    from actionviews.base import ActionView
+    from actionviews.base import View
 
-    class TestView(ActionView):
+    class TestView(View):
 
         def do_index(self:'', skip:r'\d+'=0):
             pass
@@ -21,7 +21,7 @@ def TestView(request):
         def do_default(self, pk):
             pass
 
-    class PrefixView(ActionView):
+    class PrefixView(View):
         action_method_prefix = 'act_'
 
         def act_index(self:'', skip:r'\d+'=0):

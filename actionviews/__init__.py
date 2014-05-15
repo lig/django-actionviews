@@ -1,1 +1,1 @@
-from .base import ActionView
+from .base import View
