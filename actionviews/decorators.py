@@ -1,4 +1,6 @@
 from functools import update_wrapper
+from actionviews.base import View
+from django.core.exceptions import ImproperlyConfigured
 
 
 def action_decorator(view_decorator):
@@ -34,5 +36,18 @@ def require_method(methods):
     def decorator(action):
         action.allowed_methods = methods
         return action
+
+    return decorator
+
+
+def child_view(view_klass):
+
+    if not issubclass(view_klass, View):
+        raise ImproperlyConfigured(
+            '`child_view` decorator receive View subclass as its argument')
+
+    def decorator(func):
+        func.child_view = view_klass
+        return func
 
     return decorator

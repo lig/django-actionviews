@@ -1,4 +1,5 @@
 import pytest
+from django.core.exceptions import ImproperlyConfigured
 
 
 def test_action_decorator():
@@ -52,3 +53,36 @@ def test_require_method(decorator_arg, allowed_methods):
     view = View()
 
     assert view.action.allowed_methods == allowed_methods
+
+
+def test_child_view():
+    from actionviews.base import View
+    from actionviews.decorators import child_view
+
+    class ChildView(View):
+        pass
+
+    class ParentView(View):
+
+        @child_view(ChildView)
+        def do_index(self):
+            pass
+
+    parent_view = ParentView()
+
+    assert parent_view.do_index.child_view == ChildView
+
+
+def test_child_view_not_view():
+    from actionviews.base import View
+    from actionviews.decorators import child_view
+
+    class ChildView:
+        pass
+
+    class ParentView(View):
+
+        with pytest.raises(ImproperlyConfigured):
+            @child_view(ChildView)
+            def do_index(self):
+                pass

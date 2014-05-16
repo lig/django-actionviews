@@ -1,5 +1,5 @@
 from django.conf.urls import patterns, url
-from django.core.urlresolvers import RegexURLPattern
+from django.core.urlresolvers import RegexURLPattern, resolve
 import pytest
 
 
@@ -49,7 +49,7 @@ def test_urls(TestView):
     assert urls_data['index']._regex == r'^(skip/(?P<skip>\d+)/)?$'
     assert urls_data['detail']._regex == r'^detail/pk/(?P<pk>\d+)/$'
     assert urls_data['article']._regex == r'^article/pk/(?P<pk>\d+)/$'
-    assert urls_data['default']._regex == r'^default/pk/(?P<pk>[\w\d\S]+)/$'
+    assert urls_data['default']._regex == r'^default/pk/(?P<pk>[\w\d]+)/$'
 
     assert urls_data['index'].default_args == {'skip': 0}
     assert urls_data['detail'].default_args == {}
@@ -71,7 +71,7 @@ def test_urls_format(TestView):
     assert urls_data['index']._regex == r'^((?P<skip>\d+)/)?$'
     assert urls_data['detail']._regex == r'^detail/(?P<pk>\d+)/$'
     assert urls_data['article']._regex == r'^article/(?P<pk>\d+)/$'
-    assert urls_data['default']._regex == r'^default/(?P<pk>[\w\d\S]+)/$'
+    assert urls_data['default']._regex == r'^default/(?P<pk>[\w\d]+)/$'
 
     assert urls_data['index'].default_args == {'skip': 0}
     assert urls_data['detail'].default_args == {}
@@ -153,3 +153,70 @@ def test_urls_custom_actions(TestView):
     assert 'index' not in urls_data
     assert 'article' not in urls_data
     assert 'default' not in urls_data
+
+
+def test_urls_child():
+    from actionviews.base import View
+    from actionviews.decorators import child_view
+
+    class ChildView(View):
+
+        def do_list(self):
+            pass
+
+        def do_detail(self, child_id):
+            pass
+
+    class ParentView(View):
+
+        @child_view(ChildView)
+        def do_detail(self, parent_id=0):
+            pass
+
+    parent_urls = ParentView.urls
+
+    assert (parent_urls[0]._regex ==
+        r'^detail/(parent_id/(?P<parent_id>[\w\d]+)/)?')
+    assert parent_urls[0].default_kwargs == {'parent_id': 0}
+
+    child_urls = parent_urls[0].url_patterns
+    child_urls_data = {url.name: url for url in child_urls}
+
+    assert child_urls_data['list']._regex == r'^list/$'
+    assert (child_urls_data['detail']._regex ==
+        r'^detail/child_id/(?P<child_id>[\w\d]+)/$')
+
+    assert child_urls_data['list'].default_args == {}
+    assert child_urls_data['detail'].default_args == {}
+
+
+
+def test_resolve_child(monkeypatch):
+    from actionviews.base import View
+    from actionviews.decorators import child_view
+
+    class ChildView(View):
+
+        def do_clist(self):
+            pass
+
+        def do_cdetail(self, child_id):
+            pass
+
+    class ParentView(View):
+
+        def do_plist(self):
+            pass
+
+        @child_view(ChildView)
+        def do_pdetail(self, parent_id):
+            pass
+
+    monkeypatch.setattr(
+        'django.core.urlresolvers.get_urlconf',
+        lambda: type(
+            'urlconf', (), {
+                'urlpatterns': patterns('', *ParentView.urls)}))
+
+    assert resolve('/plist/').func.__name__ == 'do_plist'    
+    assert resolve('/pdetail/parent_id/1/clist/').func.__name__ == 'do_clist'

@@ -2,7 +2,7 @@ from functools import partial, update_wrapper
 import inspect
 import logging
 
-from django.conf.urls import url
+from django.conf.urls import url, include, patterns
 from django.core.urlresolvers import resolve
 from django.http.response import HttpResponseNotAllowed, HttpResponse
 from django.template.response import TemplateResponse
@@ -83,11 +83,19 @@ class ActionViewMeta(type):
                     regex_chunks.append(group_format.format(
                         group_name=group_name, group_regex=group_regex))
 
-                url_regex = r'^{}$'.format(''.join(regex_chunks))
+                url_regex = r'^{}'.format(''.join(regex_chunks))
                 action_method.name = action_name
+
+                if hasattr(action_method, 'child_view'):
+                    child_view = action_method.child_view
+                    view=include(child_view.urls)
+                else:
+                    url_regex += r'$'
+                    view=type_new.as_view(action_method)
+
                 urls.append(url(
                     regex=url_regex,
-                    view=type_new.as_view(action_method),
+                    view=view,
                     kwargs=default_values,
                     name=action_name))
 
@@ -100,7 +108,8 @@ class View(metaclass=ActionViewMeta):
 
     action_method_prefix = 'do_'
     group_format = r'{group_name}/(?P<{group_name}>{group_regex})/'
-    default_group_regex = r'[\w\d\S]+'
+    default_group_regex = r'[\w\d]+'
+    parent = None
 
     http_method_names = ['get', 'post', 'put', 'patch', 'delete', 'head',
         'options', 'trace']
@@ -126,6 +135,9 @@ class View(metaclass=ActionViewMeta):
 
             # dispatch request
             return self.dispatch(request, *args, **kwargs)
+
+        # make view look like action
+        update_wrapper(view, action)
 
         return view
 

@@ -1,8 +1,8 @@
+from os import path
 import sys
 
 from django.conf import settings
 import pytest
-from os import path
 
 
 sys.path[0:0] = ['']
