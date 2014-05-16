@@ -2,7 +2,7 @@ from functools import partial, update_wrapper
 import inspect
 import logging
 
-from django.conf.urls import url, include, patterns
+from django.conf.urls import url, include
 from django.core.urlresolvers import resolve
 from django.http.response import HttpResponseNotAllowed, HttpResponse
 from django.template.response import TemplateResponse
@@ -13,11 +13,14 @@ logger = logging.getLogger('django.actionviews')
 
 
 class ContextMixin(object):
-    """A default context mixin that handles current action and passes the
-    result as the template context.
+    """A default context mixin that handles current action and its parent and
+    passes the result as the template context.
     """
     def get_context_data(self, **kwargs):
-        return self.action(**kwargs)
+        result = (hasattr(self.action, 'parent_action') and
+            self.action.parent_action(**kwargs) or {})
+        result.update(self.action(**kwargs))
+        return result
 
 
 class ActionViewMeta(type):
@@ -87,8 +90,7 @@ class ActionViewMeta(type):
                 action_method.name = action_name
 
                 if hasattr(action_method, 'child_view'):
-                    child_view = action_method.child_view
-                    view=include(child_view.urls)
+                    view=include(action_method.child_view.urls)
                 else:
                     url_regex += r'$'
                     view=type_new.as_view(action_method)
@@ -109,7 +111,6 @@ class View(metaclass=ActionViewMeta):
     action_method_prefix = 'do_'
     group_format = r'{group_name}/(?P<{group_name}>{group_regex})/'
     default_group_regex = r'[\w\d]+'
-    parent = None
 
     http_method_names = ['get', 'post', 'put', 'patch', 'delete', 'head',
         'options', 'trace']
@@ -131,13 +132,15 @@ class View(metaclass=ActionViewMeta):
 
             # make self.action look like actual action method
             self.action = partial(action, self)
+            print(getattr(action, 'parent_action', 'no'))
             update_wrapper(self.action, action)
-
+            print(getattr(self.action, 'parent_action', 'no'))
             # dispatch request
             return self.dispatch(request, *args, **kwargs)
 
         # make view look like action
         update_wrapper(view, action)
+        print(getattr(view, 'parent_action', 'no'))
 
         return view
 

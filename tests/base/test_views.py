@@ -1,4 +1,5 @@
 from django.conf.urls import patterns
+from django.core.urlresolvers import resolve
 import pytest
 
 from actionviews.base import TemplateResponseMixin
@@ -145,3 +146,57 @@ def test_options_method(TestView, django_request_options):
     assert response.status_code == 200
     assert response['Allow'] == 'OPTIONS'
     assert response['Content-Length'] == '0'
+
+
+def test_child(monkeypatch, django_request):
+    from actionviews.base import View, TemplateView
+    from actionviews.decorators import child_view
+
+    class ChildView(TemplateView):
+
+        def do_index(self:''):
+            return {'result': 'test'}
+
+    class ParentView(View):
+
+        @child_view(ChildView)
+        def do_index(self:''):
+            pass
+
+    monkeypatch.setattr(
+        'django.core.urlresolvers.get_urlconf',
+        lambda: type(
+            'urlconf', (), {
+                'urlpatterns': patterns('', *ParentView.urls)}))
+
+    view = resolve('/').func
+    response = view(django_request)
+
+    assert response.rendered_content == 'test'
+
+
+def test_child_defaults_for_parent(monkeypatch, django_request):
+    from actionviews.base import View, TemplateView
+    from actionviews.decorators import child_view
+
+    class ChildView(TemplateView):
+
+        def do_index(self:''):
+            return {}
+
+    class ParentView(View):
+
+        @child_view(ChildView)
+        def do_index(self:'', result='test'):
+            return {'result': result}
+
+    monkeypatch.setattr(
+        'django.core.urlresolvers.get_urlconf',
+        lambda: type(
+            'urlconf', (), {
+                'urlpatterns': patterns('', *ParentView.urls)}))
+
+    view = resolve('/').func
+    response = view(django_request)
+
+    assert response.rendered_content == 'test'

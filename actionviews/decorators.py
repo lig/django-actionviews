@@ -1,4 +1,4 @@
-from functools import update_wrapper
+from functools import update_wrapper, wraps
 from actionviews.base import View
 from django.core.exceptions import ImproperlyConfigured
 
@@ -48,6 +48,15 @@ def child_view(view_klass):
 
     def decorator(func):
         func.child_view = view_klass
+        return func
+
+    return decorator
+
+
+def with_parent(parent_action):
+
+    def decorator(func):
+        func.parent_action = parent_action
         return func
 
     return decorator
