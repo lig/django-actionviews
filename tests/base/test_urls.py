@@ -161,33 +161,35 @@ def test_urls_child():
 
     class ChildView(View):
 
-        def do_list(self):
+        def do_clist(self):
             pass
 
-        def do_detail(self, child_id):
+        def do_cdetail(self, child_id):
             pass
 
     class ParentView(View):
 
         @child_view(ChildView)
-        def do_detail(self, parent_id=0):
+        def do_pdetail(self, parent_id=0):
             pass
 
     parent_urls = ParentView.urls
 
     assert (parent_urls[0]._regex ==
-        r'^detail/(parent_id/(?P<parent_id>[\w\d]+)/)?')
-    assert parent_urls[0].default_kwargs == {'parent_id': 0}
+        r'^pdetail/(parent_id/(?P<parent_id>[\w\d]+)/)?')
+    assert (
+        parent_urls[0].default_kwargs['parent_action'].__name__ ==
+        'do_pdetail')
 
     child_urls = parent_urls[0].url_patterns
     child_urls_data = {url.name: url for url in child_urls}
 
-    assert child_urls_data['list']._regex == r'^list/$'
-    assert (child_urls_data['detail']._regex ==
-        r'^detail/child_id/(?P<child_id>[\w\d]+)/$')
+    assert child_urls_data['clist']._regex == r'^clist/$'
+    assert (child_urls_data['cdetail']._regex ==
+        r'^cdetail/child_id/(?P<child_id>[\w\d]+)/$')
 
-    assert child_urls_data['list'].default_args == {}
-    assert child_urls_data['detail'].default_args == {}
+    assert child_urls_data['clist'].default_args == {}
+    assert child_urls_data['cdetail'].default_args == {}
 
 
 

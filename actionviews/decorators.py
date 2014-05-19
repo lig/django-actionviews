@@ -1,6 +1,8 @@
 from functools import update_wrapper
-from actionviews.base import View
+
 from django.core.exceptions import ImproperlyConfigured
+
+from actionviews.base import View
 
 
 def action_decorator(view_decorator):

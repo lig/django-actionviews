@@ -2,7 +2,7 @@ from functools import partial, update_wrapper
 import inspect
 import logging
 
-from django.conf.urls import url, include, patterns
+from django.conf.urls import url, include
 from django.core.urlresolvers import resolve
 from django.http.response import HttpResponseNotAllowed, HttpResponse
 from django.template.response import TemplateResponse
@@ -13,11 +13,21 @@ logger = logging.getLogger('django.actionviews')
 
 
 class ContextMixin(object):
-    """A default context mixin that handles current action and passes the
-    result as the template context.
+    """A default context mixin that handles current action and its parent and
+    passes the result as the template context.
     """
     def get_context_data(self, **kwargs):
-        return self.action(**kwargs)
+        self.context = {}
+
+        if 'parent_action' in kwargs:
+            parent_kwargs = {param_name: kwargs.pop(param_name) for
+                param_name in kwargs.pop('parent_params')}
+            self.context.update(
+                kwargs.pop('parent_action')(self.request, **parent_kwargs))
+
+        self.context.update(self.action(**kwargs))
+
+        return self.context
 
 
 class ActionViewMeta(type):
@@ -52,6 +62,7 @@ class ActionViewMeta(type):
             urls = []
 
             for action_name, action_method in type_new.actions.items():
+                param_names = []
                 regex_chunks = []
                 default_values = {}
                 parameters = inspect.signature(
@@ -68,6 +79,7 @@ class ActionViewMeta(type):
                         continue
 
                     group_name = parameter.name
+                    param_names.append(group_name)
 
                     if parameter.annotation is inspect._empty:
                         group_regex = type_new.default_group_regex
@@ -87,8 +99,12 @@ class ActionViewMeta(type):
                 action_method.name = action_name
 
                 if hasattr(action_method, 'child_view'):
-                    child_view = action_method.child_view
-                    view=include(child_view.urls)
+                    view=include(action_method.child_view.urls)
+                    default_values.update({
+                        'parent_action': type_new.as_parent_action(
+                            action_method),
+                        'parent_params': param_names,
+                    })
                 else:
                     url_regex += r'$'
                     view=type_new.as_view(action_method)
@@ -109,15 +125,35 @@ class View(metaclass=ActionViewMeta):
     action_method_prefix = 'do_'
     group_format = r'{group_name}/(?P<{group_name}>{group_regex})/'
     default_group_regex = r'[\w\d]+'
-    parent = None
 
     http_method_names = ['get', 'post', 'put', 'patch', 'delete', 'head',
         'options', 'trace']
 
     @classonlymethod
-    def as_view(cls, action):  # @NoSelf
+    def as_parent_action(cls, action_method):  # @NoSelf
+        """Action method to parent action factory.
         """
-        Action method to view factory.
+
+        def action(request, *args, **kwargs):
+            # get view class instance
+            self = cls()
+
+            # set instance attributes
+            self.request = request
+            self.args = args
+            self.kwargs = kwargs
+
+            # return parent data
+            return action_method(self, **kwargs)
+
+        # make action look like actual action_method
+        update_wrapper(action, action_method)
+
+        return action
+
+    @classonlymethod
+    def as_view(cls, action):  # @NoSelf
+        """Action method to view factory.
         """
 
         def view(request, *args, **kwargs):
