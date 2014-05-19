@@ -17,10 +17,17 @@ class ContextMixin(object):
     passes the result as the template context.
     """
     def get_context_data(self, **kwargs):
-        result = (hasattr(self.action, 'parent_action') and
-            self.action.parent_action(**kwargs) or {})
-        result.update(self.action(**kwargs))
-        return result
+        self.context = {}
+
+        if 'parent_action' in kwargs:
+            parent_kwargs = {param_name: kwargs.pop(param_name) for
+                param_name in kwargs.pop('parent_params')}
+            self.context.update(
+                kwargs.pop('parent_action')(self.request, **parent_kwargs))
+
+        self.context.update(self.action(**kwargs))
+
+        return self.context
 
 
 class ActionViewMeta(type):
@@ -55,6 +62,7 @@ class ActionViewMeta(type):
             urls = []
 
             for action_name, action_method in type_new.actions.items():
+                param_names = []
                 regex_chunks = []
                 default_values = {}
                 parameters = inspect.signature(
@@ -71,6 +79,7 @@ class ActionViewMeta(type):
                         continue
 
                     group_name = parameter.name
+                    param_names.append(group_name)
 
                     if parameter.annotation is inspect._empty:
                         group_regex = type_new.default_group_regex
@@ -91,6 +100,11 @@ class ActionViewMeta(type):
 
                 if hasattr(action_method, 'child_view'):
                     view=include(action_method.child_view.urls)
+                    default_values.update({
+                        'parent_action': type_new.as_parent_action(
+                            action_method),
+                        'parent_params': param_names,
+                    })
                 else:
                     url_regex += r'$'
                     view=type_new.as_view(action_method)
@@ -116,9 +130,30 @@ class View(metaclass=ActionViewMeta):
         'options', 'trace']
 
     @classonlymethod
-    def as_view(cls, action):  # @NoSelf
+    def as_parent_action(cls, action_method):  # @NoSelf
+        """Action method to parent action factory.
         """
-        Action method to view factory.
+
+        def action(request, *args, **kwargs):
+            # get view class instance
+            self = cls()
+
+            # set instance attributes
+            self.request = request
+            self.args = args
+            self.kwargs = kwargs
+
+            # return parent data
+            return action_method(self, **kwargs)
+
+        # make action look like actual action_method
+        update_wrapper(action, action_method)
+
+        return action
+
+    @classonlymethod
+    def as_view(cls, action):  # @NoSelf
+        """Action method to view factory.
         """
 
         def view(request, *args, **kwargs):
@@ -132,15 +167,13 @@ class View(metaclass=ActionViewMeta):
 
             # make self.action look like actual action method
             self.action = partial(action, self)
-            print(getattr(action, 'parent_action', 'no'))
             update_wrapper(self.action, action)
-            print(getattr(self.action, 'parent_action', 'no'))
+
             # dispatch request
             return self.dispatch(request, *args, **kwargs)
 
         # make view look like action
         update_wrapper(view, action)
-        print(getattr(view, 'parent_action', 'no'))
 
         return view
 

@@ -175,19 +175,19 @@ def test_child(monkeypatch, django_request):
     assert response.rendered_content == 'test'
 
 
-def test_child_defaults_for_parent(monkeypatch, django_request):
+def test_child_defaults_for_parent(monkeypatch, request_factory):
     from actionviews.base import View, TemplateView
     from actionviews.decorators import child_view
 
     class ChildView(TemplateView):
 
-        def do_index(self:''):
+        def do_index(self):
             return {}
 
     class ParentView(View):
 
         @child_view(ChildView)
-        def do_index(self:'', result='test'):
+        def do_pindex(self, result='test'):
             return {'result': result}
 
     monkeypatch.setattr(
@@ -196,7 +196,9 @@ def test_child_defaults_for_parent(monkeypatch, django_request):
             'urlconf', (), {
                 'urlpatterns': patterns('', *ParentView.urls)}))
 
-    view = resolve('/').func
-    response = view(django_request)
+    resolver_match = resolve('/pindex/result/test/index/')
+    response = resolver_match.func(
+        request_factory.get('/pindex/result/test/index/'),
+        **resolver_match.kwargs)
 
     assert response.rendered_content == 'test'

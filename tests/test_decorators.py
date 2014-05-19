@@ -86,21 +86,3 @@ def test_child_view_not_view():
             @child_view(ChildView)
             def do_index(self):
                 pass
-
-
-def test_with_parent():
-    from actionviews.base import View
-    from actionviews.decorators import with_parent
-
-    class ParentView(View):
-
-        def do_pindex(self):
-            pass
-
-    class ChildView(View):
-
-        @with_parent(ParentView.do_pindex)
-        def do_cindex(self):
-            pass
-
-    assert ChildView.do_cindex.parent_action == ParentView.do_pindex
