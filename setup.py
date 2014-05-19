@@ -27,7 +27,7 @@ class PyTest(TestCommand):
 
 setup(
     name='django-actionviews',
-    version='0.1dev2',
+    version='0.1',
     description='Alternative Class Based Views for Django',
     long_description=long_description,
     url='https://github.com/lig/django-actionviews',
