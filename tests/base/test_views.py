@@ -1,4 +1,5 @@
 from django.conf.urls import patterns
+from django.core.exceptions import ImproperlyConfigured
 from django.core.urlresolvers import resolve
 import pytest
 
@@ -224,3 +225,24 @@ def test_raise_response_from_action(django_request, monkeypatch):
     response = view(django_request)
 
     assert response.status_code == 200
+
+
+def test_raise_non_response_from_action(django_request, monkeypatch):
+    from actionviews.base import TemplateView
+    from actionviews.exceptions import ActionResponse
+
+    class TestView(TemplateView):
+
+        def do_index(self:''):
+            raise ActionResponse({})
+
+    monkeypatch.setattr(
+        'django.core.urlresolvers.get_urlconf',
+        lambda: type(
+            'urlconf', (), {
+                'urlpatterns': patterns('', *TestView.urls)}))
+
+    view = resolve('/').func
+
+    with pytest.raises(ImproperlyConfigured):
+        view(django_request)
