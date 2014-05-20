@@ -4,7 +4,8 @@ import logging
 
 from django.conf.urls import url, include
 from django.core.urlresolvers import resolve
-from django.http.response import HttpResponseNotAllowed, HttpResponse
+from django.http.response import HttpResponseNotAllowed, HttpResponse,\
+    HttpResponseBase
 from django.template.response import TemplateResponse
 from django.utils.decorators import classonlymethod
 
@@ -27,7 +28,12 @@ class ContextMixin(object):
             self.context.update(
                 kwargs.pop('parent_action')(self.request, **parent_kwargs))
 
-        self.context.update(self.action(**kwargs))
+        action_result = self.action(**kwargs)
+
+        if isinstance(action_result, HttpResponseBase):
+            raise ActionResponse(action_result)
+
+        self.context.update(action_result)
 
         return self.context
 

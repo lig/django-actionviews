@@ -246,3 +246,24 @@ def test_raise_non_response_from_action(django_request, monkeypatch):
 
     with pytest.raises(ImproperlyConfigured):
         view(django_request)
+
+
+def test_return_response_from_action(django_request, monkeypatch):
+    from django.http.response import HttpResponse
+    from actionviews.base import TemplateView
+
+    class TestView(TemplateView):
+
+        def do_index(self:''):
+            return HttpResponse()
+
+    monkeypatch.setattr(
+        'django.core.urlresolvers.get_urlconf',
+        lambda: type(
+            'urlconf', (), {
+                'urlpatterns': patterns('', *TestView.urls)}))
+
+    view = resolve('/').func
+    response = view(django_request)
+
+    assert response.status_code == 200
