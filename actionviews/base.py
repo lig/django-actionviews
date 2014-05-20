@@ -8,6 +8,8 @@ from django.http.response import HttpResponseNotAllowed, HttpResponse
 from django.template.response import TemplateResponse
 from django.utils.decorators import classonlymethod
 
+from .exceptions import ActionResponse
+
 
 logger = logging.getLogger('django.actionviews')
 
@@ -191,7 +193,11 @@ class View(metaclass=ActionViewMeta):
                 self.http_method_not_allowed)
         else:
             handler = self.http_method_not_allowed
-        return handler(request, *args, **kwargs)
+
+        try:
+            return handler(request, *args, **kwargs)
+        except ActionResponse as e:
+            return e.response
 
     def http_method_not_allowed(self, request, *args, **kwargs):
         logger.warning(
