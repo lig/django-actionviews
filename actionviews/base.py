@@ -128,7 +128,7 @@ class ActionViewMeta(type):
         return type_new
 
 
-class View(metaclass=ActionViewMeta):
+class BaseView(metaclass=ActionViewMeta):
 
     action_method_prefix = 'do_'
     group_format = r'{group_name}/(?P<{group_name}>{group_regex})/'
@@ -235,6 +235,10 @@ class View(metaclass=ActionViewMeta):
                     self.http_method_names)))
 
 
+class View(BaseView, ContextMixin):
+    pass
+
+
 class TemplateResponseMixin(object):
     """
     A mixin that can be used to render a template.
@@ -273,7 +277,7 @@ class TemplateResponseMixin(object):
         }).strip('/')]
 
 
-class TemplateView(TemplateResponseMixin, ContextMixin, View):
+class TemplateView(TemplateResponseMixin, View):
     """
     A view that renders a template.  This view will also pass into the context
     any keyword arguments passed by the url conf.
@@ -281,6 +285,17 @@ class TemplateView(TemplateResponseMixin, ContextMixin, View):
     def get(self, request, *args, **kwargs):
         context = self.get_context_data(**kwargs)
         return self.render_to_response(context)
+
+    # support basic methods by default
+    post = head = get
+
+
+class DummyView(View):
+    """ Dummy view for testing purposes
+    """
+    def get(self, request, *args, **kwargs):
+        context = self.get_context_data(**kwargs)
+        return context
 
     # support basic methods by default
     post = head = get

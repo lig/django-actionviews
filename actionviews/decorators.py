@@ -1,8 +1,8 @@
-from functools import update_wrapper
+from functools import update_wrapper, wraps
 
 from django.core.exceptions import ImproperlyConfigured
 
-from actionviews.base import View
+from actionviews.base import BaseView
 
 
 def action_decorator(view_decorator):
@@ -44,12 +44,36 @@ def require_method(methods):
 
 def child_view(view_klass):
 
-    if not issubclass(view_klass, View):
+    if not issubclass(view_klass, BaseView):
         raise ImproperlyConfigured(
-            '`child_view` decorator receive View subclass as its argument')
+            '`child_view` decorator receive BaseView subclass as its argument')
 
     def decorator(func):
         func.child_view = view_klass
         return func
+
+    return decorator
+
+
+def form(form_class, form_name='form', **form_kwargs):
+
+    def decorator(func):
+
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            request = self.request
+    
+            if request.method == 'POST':
+                self.form = form_class(request.POST, **form_kwargs)
+    
+                if self.form.is_valid():
+                    return func(self, *args, **kwargs)
+    
+            else:
+                self.form = form_class(**form_kwargs)
+
+            return {form_name: self.form}
+
+        return wrapper
 
     return decorator

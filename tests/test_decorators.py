@@ -1,5 +1,6 @@
-import pytest
+from django.conf.urls import patterns
 from django.core.exceptions import ImproperlyConfigured
+import pytest
 
 
 def test_action_decorator():
@@ -86,3 +87,28 @@ def test_child_view_not_view():
             @child_view(ChildView)
             def do_index(self):
                 pass
+
+
+def test_form_decorator(request_factory, monkeypatch):
+    from django import forms
+    from actionviews.base import DummyView
+    from actionviews.decorators import form
+
+    class TestForm(forms.Form):
+        field = forms.CharField()
+
+    class TestView(DummyView):
+
+        @form(TestForm)
+        def do_update(self:''):
+            return {'result': self.form.is_valid()}
+
+    monkeypatch.setattr(
+        'django.core.urlresolvers.get_urlconf',
+        lambda: type(
+            'urlconf', (), {
+                'urlpatterns': patterns('', *TestView.urls)}))
+
+    view = TestView.urls[0].callback
+    response = view(request_factory.post('/', data={'field': 'value'}))
+    assert response['result']
