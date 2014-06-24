@@ -16,9 +16,11 @@ logger = logging.getLogger('django.actionviews')
 
 
 class ContextMixin(object):
+
     """A default context mixin that handles current action and its parent and
     passes the result as the template context.
     """
+
     def get_context_data(self, **kwargs):
         self.context = {}
 
@@ -107,7 +109,7 @@ class ActionViewMeta(type):
                 action_method.name = action_name
 
                 if hasattr(action_method, 'child_view'):
-                    view=include(action_method.child_view.urls)
+                    view = include(action_method.child_view.urls)
                     default_values.update({
                         'parent_action': type_new.as_parent_action(
                             action_method),
@@ -115,7 +117,7 @@ class ActionViewMeta(type):
                     })
                 else:
                     url_regex += r'$'
-                    view=type_new.as_view(action_method)
+                    view = type_new.as_view(action_method)
 
                 urls.append(url(
                     regex=url_regex,
@@ -240,6 +242,7 @@ class View(BaseView, ContextMixin):
 
 
 class TemplateResponseMixin(object):
+
     """
     A mixin that can be used to render a template.
     """
@@ -257,9 +260,9 @@ class TemplateResponseMixin(object):
         """
         response_kwargs.setdefault('content_type', self.content_type)
         return self.response_class(
-            request = self.request,
-            template = self.get_template_names(),
-            context = context,
+            request=self.request,
+            template=self.get_template_names(),
+            context=context,
             **response_kwargs
         )
 
@@ -278,10 +281,12 @@ class TemplateResponseMixin(object):
 
 
 class TemplateView(TemplateResponseMixin, View):
+
     """
     A view that renders a template.  This view will also pass into the context
     any keyword arguments passed by the url conf.
     """
+
     def get(self, request, *args, **kwargs):
         context = self.get_context_data(**kwargs)
         return self.render_to_response(context)
@@ -291,8 +296,10 @@ class TemplateView(TemplateResponseMixin, View):
 
 
 class DummyView(View):
+
     """ Dummy view for testing purposes
     """
+
     def get(self, request, *args, **kwargs):
         context = self.get_context_data(**kwargs)
         return context

@@ -22,7 +22,8 @@ def action_decorator(view_decorator):
         # but we can cheat by using it on a dummy function.
         update_wrapper(wrapper, view_decorator(lambda *args, **kwargs: None))
 
-        # Need to preserve any existing attributes of 'func', including the name.
+        # Need to preserve any existing attributes of 'func', including the
+        # name.
         update_wrapper(wrapper, func)
 
         return wrapper
@@ -62,13 +63,13 @@ def form(form_class, form_name='form', **form_kwargs):
         @wraps(func)
         def wrapper(self, *args, **kwargs):
             request = self.request
-    
+
             if request.method == 'POST':
                 self.form = form_class(request.POST, **form_kwargs)
-    
+
                 if self.form.is_valid():
                     return func(self, *args, **kwargs)
-    
+
             else:
                 self.form = form_class(**form_kwargs)
 
